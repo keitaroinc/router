@@ -184,6 +184,16 @@ http {
 		}
 	}
 
+	# Internal server running on port 8999 for handling certificate tasks.
+	server {
+		listen 127.0.0.1:8999 default_server;
+		location / {
+			content_by_lua_block {
+				auto_ssl:hook_server()
+			}
+		}
+	}
+
 	{{range $appConfig := $routerConfig.AppConfigs}}{{range $domain := $appConfig.Domains}}server {
 		listen 8080{{ if $routerConfig.UseProxyProtocol }} proxy_protocol{{ end }};
 		# Endpoint used for performing domain verification with Let's Encrypt.
@@ -244,16 +254,6 @@ http {
 			{{ if $hstsConfig.Enabled }}add_header Strict-Transport-Security $sts always;{{ end }}
 
 			proxy_pass http://{{$appConfig.ServiceIP}}:80;{{ else }}return 503;{{ end }}
-		}
-	}
-
-	# Internal server running on port 8999 for handling certificate tasks.
-	server {
-		listen 127.0.0.1:8999;
-		location / {
-			content_by_lua_block {
-				auto_ssl:hook_server()
-			}
 		}
 	}
 

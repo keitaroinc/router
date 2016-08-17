@@ -18,6 +18,9 @@ RUN apt-get update \
 		libpcre3-dev \
 		make \
 		unzip \
+	&& export BUILD_PATH=/tmp/build \
+	&& mkdir "$BUILD_PATH" \
+	&& cd "$BUILD_PATH" \
 	&& export LUAJIT_VERSION=2.1.0-beta2 LUAJIT_PREFIX=/opt/luajit LUAJIT_LIB=/opt/luajit/lib LUAJIT_INC=/opt/luajit/include/luajit-2.1 LUAROCKS_VERSION=2.3.0 \
 	&& get_src 713924ca034b9d99c84a0b7b701794c359ffb54f8e3aa2b84fad52d98384cf47 \
 		"http://luajit.org/download/LuaJIT-$LUAJIT_VERSION.tar.gz" \
@@ -37,11 +40,10 @@ RUN apt-get update \
 	&& $LUAJIT_PREFIX/bin/luarocks install lua-resty-auto-ssl \
 	&& mkdir /etc/resty-auto-ssl \
 	&& chown router:router /etc/resty-auto-ssl \
-	&& export NGINX_VERSION=1.10.1 SIGNING_KEY=A1C052F8 VTS_VERSION=0.1.8 NDK_VERSION=0.3.0 NGXLUA_VERSION=0.10.6 BUILD_PATH=/tmp/build PREFIX=/opt/router \
+	&& export NGINX_VERSION=1.10.1 SIGNING_KEY=A1C052F8 VTS_VERSION=0.1.8 NDK_VERSION=0.3.0 NGXLUA_VERSION=0.10.6 PREFIX=/opt/router \
+	&& cd "$BUILD_PATH" \
 	&& rm -rf "$PREFIX" \
 	&& mkdir "$PREFIX" \
-	&& mkdir "$BUILD_PATH" \
-	&& cd "$BUILD_PATH" \
 	&& get_src_gpg $SIGNING_KEY \
 		"http://nginx.org/download/nginx-$NGINX_VERSION.tar.gz" \
 	&& get_src 6bb9a36d8d70302d691c49557313fb7262cafd942a961d11a2730d9a5d9f70e0 \

@@ -26,6 +26,10 @@ RUN apt-get update \
 		"http://luajit.org/download/LuaJIT-$LUAJIT_VERSION.tar.gz" \
 	&& get_src 68e38feeb66052e29ad1935a71b875194ed8b9c67c2223af5f4d4e3e2464ed97 \
 		"http://keplerproject.github.io/luarocks/releases/luarocks-$LUAROCKS_VERSION.tar.gz" \
+	&& curl -LO "https://github.com/openresty/lua-resty-core/archive/v0.1.7.zip" \
+	&& unzip v0.1.7.zip \
+	&& curl -LO "https://github.com/openresty/lua-resty-lock/archive/v0.04.zip" \
+	&& unzip v0.04.zip \
 	&& cd "$BUILD_PATH/LuaJIT-$LUAJIT_VERSION" \
 	&& make PREFIX=$LUAJIT_PREFIX \
 	&& make install PREFIX=$LUAJIT_PREFIX \
@@ -37,6 +41,13 @@ RUN apt-get update \
 	  --with-lua-include="$LUAJIT_INC" \
 	&& make build \
 	&& make install \
+	&& cd "$BUILD_PATH/lua-resty-core-0.1.7" \
+	&& make install LUA_LIB_DIR=$LUAJIT_PREFIX/share/lua/5.1 \
+	&& cd "$BUILD_PATH/lua-resty-lock-0.04" \
+	&& make install LUA_LIB_DIR=$LUAJIT_PREFIX/share/lua/5.1 \
+	&& $LUAJIT_PREFIX/bin/luarocks install lua-resty-string \
+	&& $LUAJIT_PREFIX/bin/luarocks install lua-cjson \
+	&& $LUAJIT_PREFIX/bin/luarocks install luarestyredis \
 	&& $LUAJIT_PREFIX/bin/luarocks install lua-resty-auto-ssl \
 	&& mkdir /etc/resty-auto-ssl \
 	&& chown router:router /etc/resty-auto-ssl \

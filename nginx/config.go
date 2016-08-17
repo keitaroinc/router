@@ -209,10 +209,6 @@ http {
 
 		{{ if index $appConfig.Certificates $domain }}
 		listen 6443 ssl {{ if $routerConfig.UseProxyProtocol }} proxy_protocol{{ end }};
-		# Dynamic handler for issuing or returning certs for SNI domains.
-		ssl_certificate_by_lua_block {
-			auto_ssl:ssl_certificate()
-		}
 		ssl_protocols {{ $sslConfig.Protocols }};
 		{{ if ne $sslConfig.Ciphers "" }}ssl_ciphers {{ $sslConfig.Ciphers }};{{ end }}
 		ssl_prefer_server_ciphers on;
@@ -223,7 +219,26 @@ http {
 		ssl_session_tickets {{ if $sslConfig.UseSessionTickets }}on{{ else }}off{{ end }};
 		ssl_buffer_size {{ $sslConfig.BufferSize }};
 		{{ if ne $sslConfig.DHParam "" }}ssl_dhparam /opt/router/ssl/dhparam.pem;{{ end }}
+
+		{{ else }}
+
+		listen 6443 ssl {{ if $routerConfig.UseProxyProtocol }} proxy_protocol{{ end }};
+		ssl_protocols {{ $sslConfig.Protocols }};
+		{{ if ne $sslConfig.Ciphers "" }}ssl_ciphers {{ $sslConfig.Ciphers }};{{ end }}
+		ssl_prefer_server_ciphers on;
+                # Dynamic handler for issuing or returning certs for SNI domains.
+                ssl_certificate_by_lua_block {
+                        auto_ssl:ssl_certificate()
+                }		
+		ssl_certificate /opt/router/ssl/default/default.crt;
+		ssl_certificate_key /opt/router/ssl/default/default.key;
+		{{ if ne $sslConfig.SessionCache "" }}ssl_session_cache {{ $sslConfig.SessionCache }};
+		ssl_session_timeout {{ $sslConfig.SessionTimeout }};{{ end }}
+		ssl_session_tickets {{ if $sslConfig.UseSessionTickets }}on{{ else }}off{{ end }};
+		ssl_buffer_size {{ $sslConfig.BufferSize }};
+		{{ if ne $sslConfig.DHParam "" }}ssl_dhparam /opt/router/ssl/dhparam.pem;{{ end }}
 		{{ end }}
+
 
 		{{ if or $routerConfig.EnforceWhitelists (or (ne (len $routerConfig.DefaultWhitelist) 0) (ne (len $appConfig.Whitelist) 0)) }}
 		{{ if or (eq (len $appConfig.Whitelist) 0) (eq $routerConfig.WhitelistMode "extend") }}{{ range $whitelistEntry := $routerConfig.DefaultWhitelist }}allow {{ $whitelistEntry }};{{ end }}{{ end }}

@@ -22,6 +22,32 @@ events {
 }
 
 http {
+	# The "auto_ssl" shared dict should be defined with enough storage space to
+	# hold your certificate data. 1MB of storage holds certificates for
+	# approximately 100 separate domains.
+	lua_shared_dict auto_ssl 20m;
+
+	# A DNS resolver must be defined for OCSP stapling to function.
+	resolver 8.8.8.8;
+
+	# Initial setup tasks.
+	init_by_lua_block {
+	  auto_ssl = (require "resty.auto-ssl").new()
+
+	  -- Define a function to determine which SNI domains to automatically handle
+	  -- and register new certificates for. Defaults to not allowing any domains,
+	  -- so this must be configured.
+	  auto_ssl:set("allow_domain", function(domain)
+	    return true
+	  end)
+
+	  auto_ssl:init()
+	}
+
+	init_worker_by_lua_block {
+	  auto_ssl:init_worker()
+	}
+
 	# basic settings
 	sendfile on;
 	tcp_nopush on;
@@ -160,6 +186,12 @@ http {
 
 	{{range $appConfig := $routerConfig.AppConfigs}}{{range $domain := $appConfig.Domains}}server {
 		listen 8080{{ if $routerConfig.UseProxyProtocol }} proxy_protocol{{ end }};
+		# Endpoint used for performing domain verification with Let's Encrypt.
+		location /.well-known/acme-challenge/ {
+			content_by_lua_block {
+				auto_ssl:challenge_server()
+			}
+		}
 		server_name {{ if contains "." $domain }}{{ $domain }}{{ else if ne $routerConfig.PlatformDomain "" }}{{ $domain }}.{{ $routerConfig.PlatformDomain }}{{ else }}~^{{ $domain }}\.(?<domain>.+)${{ end }};
 		server_name_in_redirect off;
 		port_in_redirect off;
@@ -167,6 +199,10 @@ http {
 
 		{{ if index $appConfig.Certificates $domain }}
 		listen 6443 ssl {{ if $routerConfig.UseProxyProtocol }} proxy_protocol{{ end }};
+		# Dynamic handler for issuing or returning certs for SNI domains.
+		ssl_certificate_by_lua_block {
+			auto_ssl:ssl_certificate()
+		}
 		ssl_protocols {{ $sslConfig.Protocols }};
 		{{ if ne $sslConfig.Ciphers "" }}ssl_ciphers {{ $sslConfig.Ciphers }};{{ end }}
 		ssl_prefer_server_ciphers on;
@@ -208,6 +244,16 @@ http {
 			{{ if $hstsConfig.Enabled }}add_header Strict-Transport-Security $sts always;{{ end }}
 
 			proxy_pass http://{{$appConfig.ServiceIP}}:80;{{ else }}return 503;{{ end }}
+		}
+	}
+
+	# Internal server running on port 8999 for handling certificate tasks.
+	server {
+		listen 127.0.0.1:8999;
+		location / {
+			content_by_lua_block {
+				auto_ssl:hook_server()
+			}
 		}
 	}
 
